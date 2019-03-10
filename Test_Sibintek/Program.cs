@@ -15,31 +15,46 @@ namespace Test_Sibintek
         {
             
 
-            string path = @"C:\Users\Рустем\Desktop\Test_Sibintek\file_for_test_sibintek.txt";
-            string path2 = @"C:\Users\Рустем\Desktop\Test_Sibintek\file_for_test_sibintek2.png";
-            string path3 = @"C:\Users\Рустем\Desktop\Test_Sibintek";
-            string path4 = @"C:\Users\Рустем\Desktop\Test_Sibintek";
+            //string path1 = @"C:\Users\Рустем\Desktop\Test_Sibintek\file_for_test_sibintek.txt";
+            //string path2 = @"C:\Users\Рустем\Desktop\Test_Sibintek\file_for_test_sibintek2.png";
+            //string path3 = @"C:\Users\Рустем\Desktop\Test_Sibintek";
+            string path = @"C:\Users\Рустем\Desktop\ASUS";
             
 
-            using (StreamReader sr = new StreamReader(path))
-                {
+            //using (StreamReader sr = new StreamReader(path1))
+            //    {
                     
-                    Console.WriteLine($"\n Hello, {MD5Hash(sr.ReadToEnd())}");
-                }
+            //        Console.WriteLine($"\n Hello, {MD5Hash(sr.ReadToEnd())}");
+            //    }
 
-            using (StreamReader sr = new StreamReader(path2))
-            {
+            //using (StreamReader sr = new StreamReader(path2))
+            //{
                 
-                Console.WriteLine($"\n Hello, {MD5Hash(sr.ReadToEnd())}");
-            }
+            //    Console.WriteLine($"\n Hello, {MD5Hash(sr.ReadToEnd())}");
+            //}
             
 
-            if (Directory.Exists(path3))
+            if (Directory.Exists(path))
             {
-                var directory = Directory.EnumerateFileSystemEntries(path3);
-                foreach (string elem in directory)
+               
+
+                List<string> filesList = GetFilesList(path);
+                for (int i = 0; i < filesList.Count; i++)
                 {
-                    Console.WriteLine(elem);
+                    using (StreamReader sr = new StreamReader(filesList[i]))
+                    {
+                        try
+                        {
+                            Console.WriteLine(filesList[i]);
+                            Console.WriteLine( MD5Hash(sr.ReadToEnd()) + "\n");
+                        }
+                        catch (IOException)
+                        {
+                            sr.Close();
+                            continue;
+                        }
+                    }
+
                 }
             }
             else
@@ -48,32 +63,29 @@ namespace Test_Sibintek
             }
             
 
-            Console.WriteLine("+++++++++++++++++++++++++++++++++++++++++++++");
 
-            DirectoryInfo dir = new DirectoryInfo(path4);
-
-            Directories(dir);
-
-            
-            
         }
 
 
-        static void Directories(DirectoryInfo dir)
+        private static List<string> GetFilesList(string path) //список путей ко всем файлам
         {
-            foreach (var x in dir.GetDirectories().OrderBy(x => x.Name))
+          
+            List<string> filesList = new List<string>();
+            string[] dirs = Directory.GetDirectories(path);
+            filesList.AddRange(Directory.GetFiles(path));
+            foreach (string subdirectory in dirs)
             {
-                Console.WriteLine(x);
-                if (x.GetDirectories().Count() > 0)
+                try
                 {
-                    
-                    Directories(x);
-                    
+                    filesList.AddRange(GetFilesList(subdirectory));
                 }
+                catch { }
             }
+            
+            return filesList;
         }
-  
 
+       
 
         public static string MD5Hash(string input) //функция хеширования файла
         {
