@@ -11,52 +11,52 @@ namespace Test_Sibintek
 {
     public class Program
     {
-        //object block = new object();
+        public static List<string> ErrorList = new List<string>();
+        public static List<string> HashList = new List<string>();
+        static object locker = new object();
         static void Main(string[] args)
         {
-            string path = @"I:\Sibintek_test-master";
+
+
+            string path = @"E:\Sibintek_test-master";
 
             if (Directory.Exists(path))
             {
-                //// Создаем 4 потоков
-                //Thread[] threads = new Thread[4];
-                //threads[0] = new Thread(new ThreadStart());
 
-                //for (int i = 0; i < 4; i++)
-                //{
-                //    threads[i] = new Thread(new ThreadStart(/*mt.ThreadNumbers*/));
-                //    threads[i].Name = string.Format("Работает поток: #{0}", i);
-                //}    
-                //// Запускаем все потоки
-                //foreach (Thread t in threads)
-                //    t.Start();
+                Queue<string> numbers = new Queue<string>();
+                GetFilesQueue(path, numbers);
 
-                List<string> ErrorList = new List<string>();
-                List<string> filesList = GetFilesList(path);
-                List<string> HashList = new List<string>();
 
-                for (int i = 0; i < filesList.Count; i++)
+
+                int counte = numbers.Count;
+                for (int i = 0; i < counte; i++)
                 {
+                    Thread myThread = new Thread(new ParameterizedThreadStart(MD5Hash));
+
+                    //Console.WriteLine(i.ToString() + ":" + numbers.Peek());
+                    Bytes bytes = new Bytes();
                     try
                     {
-                        byte[] buff = File.ReadAllBytes(filesList[i]); //побайтовое чтение файла
 
-                        //вызов 2-3 потока
-                        HashList.Add(MD5Hash(buff));//хеширование
-                        Console.WriteLine(MD5Hash(buff)); //хеширование
-
-                        Console.WriteLine(filesList[i]); //путь  
-
-                        ErrorList.Add("No Exception"); //ошибка
-                        Console.WriteLine(ErrorList[i]); //ошибка
+                        bytes.name = numbers.Peek();
+                        bytes.bytes2 = File.ReadAllBytes(numbers.Dequeue()); //побайтовое чтение файла 
+                        //numbers.Dequeue();
+                        myThread.Start(bytes); //вызов потоков
                     }
                     catch (Exception e)
                     {
-                        ErrorList.Add(e.Message);
-                        Console.WriteLine(ErrorList[i]);
+                        bytes.exception = e.Message;
+                        //Написать тред ноправляющей инф в БД
+                        Console.WriteLine(bytes.name);
+                        Console.WriteLine(bytes.exception);
+
+                        //ErrorList.Add(e.Message);
+                        //Console.WriteLine(ErrorList[i]);
                         continue;
                     }
                 }
+
+
             }
             else
             {
@@ -64,35 +64,67 @@ namespace Test_Sibintek
             }
         }
 
-        private static List<string> GetFilesList(string path) //список путей ко всем файлам
-        {
 
-            List<string> filesList = new List<string>();
+        private static void GetFilesQueue(string path, Queue<string> numbers) //список путей ко всем файлам
+        {
             string[] dirs = Directory.GetDirectories(path);
-            filesList.AddRange(Directory.GetFiles(path));
-            foreach (string subdirectory in dirs)
+
+            foreach (string f in Directory.GetFiles(path))
             {
                 try
                 {
-                    filesList.AddRange(GetFilesList(subdirectory));
+                    numbers.Enqueue(f);
                 }
                 catch { }
             }
 
-            return filesList;
+            foreach (string subdirectory in dirs)
+            {
+                try
+                {
+                    GetFilesQueue(subdirectory, numbers);
+                }
+                catch { }
+            }
+
         }
 
-        public static string MD5Hash(byte[] bytes2) //функция хеширования файла
+
+        public static void MD5Hash(object Bytes2) //функция хеширования файла
         {
+
+            Bytes by = (Bytes)Bytes2;
             StringBuilder hash = new StringBuilder();
             MD5CryptoServiceProvider md5provider = new MD5CryptoServiceProvider();
-            byte[] bytes = md5provider.ComputeHash(bytes2);
+            byte[] bytes = md5provider.ComputeHash(by.bytes2);
 
             for (int i = 0; i < bytes.Length; i++)
             {
                 hash.Append(bytes[i].ToString("x2"));
             }
-            return hash.ToString();
+            lock (locker)
+            {
+                HashList.Add(hash.ToString());
+
+                Console.WriteLine(by.name);
+                Console.WriteLine(HashList[HashList.Count - 1]); //хеширование
+                ErrorList.Add("No Exception"); //ошибка
+                Console.WriteLine(ErrorList[ErrorList.Count - 1]); //ошибка
+
+            }
+
+
         }
+
     }
+
+    public class Bytes
+    {
+        public byte[] bytes2;
+        public string hesh;
+        public string exception;
+        public string name;
+    }
+
+
 }
