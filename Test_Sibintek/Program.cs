@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Security.Cryptography;
 using System.IO;
 using System.Threading;
+using System.Data.SqlClient;
 
 namespace Test_Sibintek
 {
@@ -16,10 +17,10 @@ namespace Test_Sibintek
         static object locker = new object();
         static void Main(string[] args)
         {
+ 
 
-
-            string path = @"E:\Sibintek_test-master";
-
+            // string path = @"I:\Sibintek_test-master";
+            string path = @"C:\Users\Рустем\Desktop\Test_Sibintek";
             if (Directory.Exists(path))
             {
 
@@ -33,25 +34,20 @@ namespace Test_Sibintek
                 {
                     Thread myThread = new Thread(new ParameterizedThreadStart(MD5Hash));
 
-                    //Console.WriteLine(i.ToString() + ":" + numbers.Peek());
+
                     Bytes bytes = new Bytes();
                     try
                     {
 
                         bytes.name = numbers.Peek();
                         bytes.bytes2 = File.ReadAllBytes(numbers.Dequeue()); //побайтовое чтение файла 
-                        //numbers.Dequeue();
+
                         myThread.Start(bytes); //вызов потоков
                     }
                     catch (Exception e)
                     {
                         bytes.exception = e.Message;
-                        //Написать тред ноправляющей инф в БД
-                        Console.WriteLine(bytes.name);
-                        Console.WriteLine(bytes.exception);
-
-                        //ErrorList.Add(e.Message);
-                        //Console.WriteLine(ErrorList[i]);
+                        myThread.Start(bytes);
                         continue;
                     }
                 }
@@ -95,25 +91,46 @@ namespace Test_Sibintek
 
             Bytes by = (Bytes)Bytes2;
             StringBuilder hash = new StringBuilder();
-            MD5CryptoServiceProvider md5provider = new MD5CryptoServiceProvider();
-            byte[] bytes = md5provider.ComputeHash(by.bytes2);
+            if (by.bytes2 != null)
+            {            
+                MD5CryptoServiceProvider md5provider = new MD5CryptoServiceProvider();
+                byte[] bytes = md5provider.ComputeHash(by.bytes2);
 
-            for (int i = 0; i < bytes.Length; i++)
-            {
-                hash.Append(bytes[i].ToString("x2"));
+                 for (int i = 0; i < bytes.Length; i++)
+                 {
+                    hash.Append(bytes[i].ToString("x2"));
+                 }
             }
             lock (locker)
             {
                 HashList.Add(hash.ToString());
+                if(by.exception == null)
+                {
+                    ErrorList.Add(""); //ошибка
+                }
+                else
+                {
+                    ErrorList.Add(by.exception); //ошибка
+                }
 
                 Console.WriteLine(by.name);
-                Console.WriteLine(HashList[HashList.Count - 1]); //хеширование
-                ErrorList.Add("No Exception"); //ошибка
+                Console.WriteLine(HashList[HashList.Count - 1]); //хеширование                
                 Console.WriteLine(ErrorList[ErrorList.Count - 1]); //ошибка
 
+                string name = by.name;
+                string connectionString = @"Data Source=DESKTOP-TS65TJB;Initial Catalog=data_sibintek;Integrated Security=True";
+                string sqlExpression = "INSERT INTO file_hash_table (name, path, hash, eror) VALUES ('"+name+"', '"+name+"', '"+HashList[HashList.Count - 1]+"', '"+ErrorList[ErrorList.Count - 1]+"')";
+
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    SqlCommand command = new SqlCommand(sqlExpression, connection);
+                    int number = command.ExecuteNonQuery();
+                    Console.WriteLine("Добавлено объектов: {0}", number);
+                }
+
             }
-
-
+            
         }
 
     }
